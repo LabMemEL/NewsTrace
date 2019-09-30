@@ -3,7 +3,7 @@
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.{col, concat_ws, lit}
 import scala.io.Source
 import java.util.Properties
 // import com.amazonaws.services.s3.AmazonS3Client
@@ -13,30 +13,59 @@ import java.sql.{DriverManager, Connection}
 
 object SimpleApp {
 
-  def create_table(connection: Connection, tablename: String){
-
+  def create_tb_events(connection: Connection, date: String){
     // val driver =
     // val jdbcDF = SQLContext.load("jdbc", Map(
     //   "url" -> "jdbc:postgresql://ec2-54-202-161-91.us-west-2.compute.amazonaws.com/post"
     // ))
     // var connection:Connection = _
       val statement = connection.createStatement
-      val update = "CREATE TABLE IF NOT EXISTS " + tablename + """ (
+      val update = "CREATE TABLE IF NOT EXISTS TB_" + date + """ (
                     EID INT PRIMARY KEY,
-                    Date TEXT,
-                    act1 TEXT,
-                    act2 TEXT,
+                    Date DATETIME NOT NULL,
+                    K_words TEXT,
+                    N_Mentions INT,
+                    N_Sources INT,
+                    N_Discs INT,
                     URL TEXT NOT NULL
                     )  ENGINE=INNODB;"""
       val rs = statement.executeUpdate(update)
   }
 
-  def updateDB(records_df: DataFrame, tablename: String) {  //update(records_df: DataFrame)
 
-    // val sparkSes_db = SparkSession
-    //     .builder()
-    //     .appName("GDELT_updateDB")
-    //     .getOrCreate()
+  def create_tb_mentions(connection: Connection, date: String){
+    val statement = connection.createStatement
+    val update = "CREATE TABLE IF NOT EXISTS MT_" + date + """ (
+                  EID INT,
+                  Init_Date DATETIME,
+                  Curr_Date DATETIME,
+                  Sc_Name TEXT NOT NULL,
+                  Sc_URL TEXT,
+                  Conf INT
+                  )  ENGINE=INNODB;"""
+    val rs = statement.executeUpdate(update)
+  }
+
+  def create_tb_finals(connection: Connection, date: String){
+    // val limit_st = "SET GROUP_concat_max_len=15000"
+
+    val statement = connection.createStatement
+    val concate_st = "CREATE TABLE IF NOT EXISTS EX_" + date + """
+                      SELECT mt.EID AS EID, COUNT('tb.EID') AS S_nums,
+                      MAX(timestampdiff(minute, mt.Init_Date, mt.Curr_date)) AS max_span,
+                      GROUP_CONCAT(mt.Sc_Name SEPARATOR '\t') AS S_names,
+                      GROUP_CONCAT(mt.Sc_URL SEPARATOR '\t') AS S_urls
+                      FROM MT_""" + date + " mt, TB_" + date + """ tb
+                      WHERE tb.EID = mt.EID
+                      GROUP BY tb.EID"""
+    statement.executeUpdate(concate_st)
+
+    val join_st = "CREATE TABLE IF NOT EXISTS RS_" + date + """
+                  SELECT * FROM TB_""" + date + " LEFT JOIN EX_" + date + " USING(EID)"
+    statement.executeUpdate(join_st)
+  }
+
+  def db_write(records_df: DataFrame, tablename: String) {  //update(records_df: DataFrame)
 
     val connectionProperties = new Properties()
     connectionProperties.put("user", "sparkMS")
@@ -51,21 +80,58 @@ object SimpleApp {
     records_df.write
           .mode("append")
           .jdbc("jdbc:mysql://ec2-54-202-161-91.us-west-2.compute.amazonaws.com:3306/gdeltDB", "gdeltDB."+ tablename, connectionProperties)
-    // var connection:Connection = _ls
-    // try {
-    // } catch {
-    //   case e: Exception => e.printStackTrace
-    // }
-    // sparkSes_db.stop()
   }
 
+  def process_mentions(connection: Connection, spark: SparkSession){
+    val names = Seq("EID", "Init_Date", "Curr_Date", "Sc_Name", "Sc_URL", "Conf")
+    val fileNames = Source.fromFile("mentionslist.out").getLines.toList.take(2)
+    for (fileName <- fileNames) {
+      // v2/events/20150715014500.export.csv into 2015_07_15
+      val date = fileName.split("/")(2).substring(0,8)
+      val month = date.substring(0,6)
+      create_tb_mentions(connection, date) //consider if check to run only monthly
 
-  // }
+      val full_df = spark.read.format("csv")
+          .option("sep", "\t")
+          // .option("header", "true") //first line in file has headers
+          .option("mode", "DROPMALFORMED")
+          .load("s3a://insightdatarichard/"+ fileName) //s3 triggers jets3t exception
+      // gdelt_full_df.show()
+
+      val main_DF  = full_df.select("_c0","_c1","_c2","_c4","_c5","_c11")
+      val renamed_df = main_DF.toDF(names: _*)
+      // print(renamed_df.show(2))
+      db_write(renamed_df, "MT_" + date)
+      create_tb_finals(connection, date)
+    }
+  }
+
+  def process_events(connection: Connection, spark: SparkSession){
+    val names = Seq("EID", "Date", "act1", "act2", "N_Mentions", "N_Sources", "N_Discs", "URL")
+    val fileNames = Source.fromFile("eventlist.out").getLines.toList.take(2)
+    for (fileName <- fileNames) {
+      // v2/events/20150715014500.export.csv into 2015_07_15
+      val date = fileName.split("/")(2).substring(0,8)
+      create_tb_events(connection, date)
+
+      val full_df = spark.read.format("csv")
+          .option("sep", "\t")
+          // .option("header", "true") //first line in file has headers
+          .option("mode", "DROPMALFORMED")
+          .load("s3a://insightdatarichard/"+ fileName) //s3 triggers jets3t exception
+      // gdelt_full_df.show()
+
+      val main_DF  = full_df.select("_c0","_c1","_c6","_c16","_c31","_c32","_c33","_c60")
+      val temp_df = main_DF.toDF(names: _*)
+      val final_df = temp_df.withColumn("K_words", concat_ws(",", col("act1"), col("act2")))
+                            .drop("act1", "act2")
+      // print(final_df.show(2))
+      db_write(final_df, "TB_" + date)
+    }
+  }
 
   def main(args: Array[String]) {
 
-    val fileNames = Source.fromFile("eventlist.out").getLines.toList.take(100)
-    
     val spark = SparkSession
         .builder()
         .appName("GDELT_process")
@@ -78,33 +144,12 @@ object SimpleApp {
 
     try {
       Class.forName(driver)
-      val connection = DriverManager.getConnection(url, username, password)
+      val dbConnection = DriverManager.getConnection(url, username, password)
+      process_events(dbConnection, spark)
+      process_mentions(dbConnection, spark)
 
 
-    // ideally start of parallel work
-    // val lookup = Map("_c0" -> "EID", "_c1" -> "Date", "_c44" -> "act1", "_c52" -> "act2", "_c60" -> "URL")
-      val names = Seq("EID", "Date", "act1", "act2", "URL")
-      for (fileName <- fileNames) {
-        // v2/events/20150715014500.export.csv into 2015_07_15
-        val tablename = "TB_" + fileName.split("/")(2).substring(0,8)
-        create_table(connection, tablename)
-
-        val full_df = spark.read.format("csv")
-            .option("sep", "\t")
-            // .option("header", "true") //first line in file has headers
-            .option("mode", "DROPMALFORMED")
-            .load("s3a://insightdatarichard/"+ fileName) //s3 triggers jets3t exception
-        // gdelt_full_df.show()
-
-        val main_DF  = full_df.select("_c0","_c1","_c44","_c52","_c60")
-        val renamed_df = main_DF.toDF(names: _*)
-
-        // print(renamed_df.show(1))
-        updateDB(renamed_df, tablename)
-      }
-
-      // rs is the result set object, reads with a cursor (line by line)
-      connection.close
+      dbConnection.close
     } catch {
       case e: Exception => e.printStackTrace
     }
