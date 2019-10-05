@@ -1,0 +1,73 @@
+<style>
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed
+        }
+        td, th {
+            border: 1px solid #2c3b41c4;
+            text-align: left;
+            padding: 5px;
+            word-wrap:break-word
+        }
+        td:nth-child(odd) {
+            background-color: #81a4b3;
+        }
+        tr:nth-child(1) {
+            background-color: #14465c;
+            color: #dee7eb
+        }
+</style>
+    
+<meta charset="UTF-8">
+<title>Results</title>
+
+<table id="Results" style="width:120%">
+    <tbody>
+        <tr>
+            <th width="5%">Tweeted at</th>
+            <th width="15%">With link</th>
+            <th width="15%">In context</th>
+            <th width="5%">Matches with event</th>
+
+            <th width="5%">Key words</th>
+            <th width="5%"># of mentions</th>
+            <th width="5%"># of discussions</th>
+
+            <th width="5%"># of sources</th>
+            <th width="5%">timespan of event</th>
+            <th width="10%">list of sources</th>
+            <th width="25%">list of source url</th> 
+        </tr>
+        {% if results %}
+        {% for row in results %}
+        {% set s_list = row[12].split('\t') %}
+        {% set s_length = s_list|length %}
+        <tr>
+            <td rowspan= {{ s_length }}> {{ row[0] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[1][0] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[2] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[3] }}</td>
+            <!-- skip 1 column of day -->
+            <td rowspan= {{ s_length }}> {{ row[5] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[6] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[7] }}</td>
+            <!-- skip 1 column of url -->
+            <td rowspan= {{ s_length }}> {{ row[9] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[10] }}</td>
+            <td rowspan= {{ s_length }}> {{ row[11] }}</td>
+            {% if s_length > 1%}
+            {% for s in s_list %}
+                <td> {{ s }}</td>
+                </tr>
+                <tr>
+            {% endfor %}
+            {% else %}
+                <td> {{ s_list }}</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </tbody>
+</table>

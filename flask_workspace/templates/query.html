@@ -1,0 +1,37 @@
+<style>
+    table {
+        font-family: arial, sans-serif;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    td, th {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+    }
+    tr:nth-child(even) {
+        background-color: #dddddd;
+    }
+</style>
+
+<meta charset="UTF-8">
+<title>Quries</title>
+
+<table id="Quries" style="width:100%">
+    <tbody>
+        <tr>
+            <th>EID</th>
+            <th>URL</th>
+            <th>K_words</th>
+        </tr>
+        {% if result %}
+        {% for row in result %}
+        <tr>
+            <td> {{ row["EID"] }}</td>
+            <td> {{ row["URL"] }}</td>
+            <td> {{ row["K_words"] }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </tbody>
+</table>

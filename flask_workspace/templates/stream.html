@@ -1,0 +1,37 @@
+<style>
+    table {
+        font-family: arial, sans-serif;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    td, th {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+    }
+    tr:nth-child(even) {
+        background-color: #dddddd;
+    }
+</style>
+
+<meta charset="UTF-8">
+<title>Tweets</title>
+
+<table id="Tweets" style="width:100%">
+    <tbody>
+        <tr>
+            <th>Tweeted at</th>
+            <th>With URL</th>
+            <th>In contents</th>
+        </tr>
+        {% if tweets %}
+        {% for time_stamp, full_text, query_result in tweets %}
+        <tr>
+            <td> {{ time_stamp }}</td>
+            <td> {{ full_text }}</td>
+            <td> {{ query_result }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </tbody>
+</table>
