@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% block content %}
+
+
+<h3><br><br>Original Post:</h3>
+{% if detail %}
+  <article class="media content-section">
+    <div class="media-body">
+        <div class="article-metadata">
+          <h5 class="mr-2">{{ detail[2] }}</h5>
+          <h6 class="text-primary">@ {{ detail[0] }}</h6>
+          <h5 style="color:#000099"><br>Keyword(s): {{ detail[5] }}<br><br></h5>
+          <smallh5 class="p-2 bg-primary text-white">Mentioned {{ detail[6] }} time(s) </smallh5>
+          <smallh5 class="p-2 bg-info text-white"> Reported {{ detail[9] }} time(s)  </smallh5>
+          {% set days =  (detail[10]|int)/1440 %}
+            {% if days >= 1 %}
+              <smallh5 class="p-2 bg-success text-white">Covered for {{ days }} days  </smallh5>
+            {% else %}
+              <smallh5 class="p-2 bg-success text-white">Covered for less than one day  </smallh5>
+          {% endif %}
+          <h5 style="color:#333399"><br>Relevant Source(s): <br></h5>
+            {% set s_list = detail[12].split('\t') %}
+            {% set s_length = s_list|length %}
+              {% for s in s_list %}
+                  <h5> {{ s }}</h5>
+              {% endfor %}
+
+        </div>
+      </div>
+    </article>
+{% endif %}
+{% endblock content %}
+
+

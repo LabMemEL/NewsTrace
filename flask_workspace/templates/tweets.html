@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+
+
+<h3 class="ml-10"><br>Timeline</h3>
+  {% if results %}
+  {% for row in results %}
+    <article class="media content-section ml-10">
+      <div class="media-body">
+        <div class="article-metadata">
+          <form class="form-inline"action="{{ url_for('details', eid=row[3])}}" method="POST">
+            <h5><br>{{ row[2] }}
+            <small class="text-primary"> @ {{ row[0] }}  </small>
+            <input id="fullrow" name={{ row[3] }} type="hidden" value="{{row}}">
+            <!-- <input id="urls" name={{ row[3] }} type="hidden" value="{{ row[12] }}"> -->
+            <button class="btn btn-outline-primary btn-sm" type="submit"> Details </button></h5>
+          </form>
+        </div>
+      </div>
+    </article>
+  {% endfor %}
+  {% endif %}
+{% endblock content %}
