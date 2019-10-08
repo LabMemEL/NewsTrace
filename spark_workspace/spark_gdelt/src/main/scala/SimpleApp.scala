@@ -1,17 +1,22 @@
 // package gdelt.spark
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.{col, concat_ws, lit}
 import scala.io.Source
 import java.util.Properties
+import com.typesafe.config.ConfigFactory
 // import com.amazonaws.services.s3.AmazonS3Client
 // import com.amazonaws.services.s3.model.GetObjectRequest
 import org.apache.spark.{SparkContext, SparkConf}
 import java.sql.{DriverManager, Connection}
 
 object SimpleApp {
+  val jdbc_path = ConfigFactory.load().getConfig("main").getString("jdbc")
+  val url = ConfigFactory.load().getConfig("main").getString("url")
+  val driver = ConfigFactory.load().getConfig("main").getString("driver")
+  val username = ConfigFactory.load().getConfig("main").getString("user")
+  val password = ConfigFactory.load().getConfig("main").getString("passwd")
 
   def create_tb_events(connection: Connection, date: String){
       val statement = connection.createStatement
@@ -55,9 +60,9 @@ object SimpleApp {
                       GROUP BY tb.EID"""
     statement.executeUpdate(concate_st)
 
-    val join_st = "CREATE TABLE IF NOT EXISTS RS_" + date + """ (INDEX(URL(10)))
+    val join_st = "CREATE TABLE IF NOT EXISTS RS_" + date + """ (INDEX(URL(10),Date))
                   SELECT tb.EID,
-                  tb.Date,
+                  tb.Date as Date,
                   tb.K_words,
                   tb.N_Mentions,
                   tb.N_Discs,
@@ -73,14 +78,15 @@ object SimpleApp {
   def db_write(records_df: DataFrame, tablename: String) {  //update(records_df: DataFrame)
 
     val connectionProperties = new Properties()
-    connectionProperties.put("user", "sparkMS")
-    connectionProperties.put("password", "test")
-    connectionProperties.put("driver", "com.mysql.cj.jdbc.Driver")
+    connectionProperties.put("user", username)
+    connectionProperties.put("password", password)
+    connectionProperties.put("driver", driver)
 
     records_df.write
           .mode("append")
-          .jdbc("jdbc:mysql://ec2-35-165-132-83.us-west-2.compute.amazonaws.com:3306/gdeltDB", "gdeltDB."+ tablename, connectionProperties)
+          .jdbc(jdbc_path, "gdeltDB."+ tablename, connectionProperties)
   }
+
 
   def filter_mentions(connection: Connection, spark: SparkSession){
 
@@ -107,7 +113,7 @@ object SimpleApp {
 
   def filter_events(connection: Connection, spark: SparkSession){
 
-    val fileNames = Source.fromFile("eventlist.out").getLines.toList.drop(5000).take(30000)
+    val fileNames = Source.fromFile("eventlist.out").getLines.toList.drop(35000).take(1000)
     val months = fileNames.map(x => x.split("/")(2).substring(0,6)).distinct //(0, 6) for montly, (0,8) for daily
     for (month <- months) {
       create_tb_events(connection, month)
@@ -135,17 +141,15 @@ object SimpleApp {
         .appName("GDELT_process")
         .getOrCreate()
 
-    val url = "jdbc:mysql://ec2-35-165-132-83.us-west-2.compute.amazonaws.com:3306/gdeltDB"
-    val driver = "com.mysql.cj.jdbc.Driver"
-    val username = "sparkMS"
-    val password = "test"
-
+    // val url = "jdbc:mysql://ec2-35-165-132-83.us-west-2.compute.amazonaws.com:3306/gdeltDB"
+    // val driver = "com.mysql.cj.jdbc.Driver"
+    // val username = "sparkMS"
+    // val password = "test"
     try {
       Class.forName(driver)
       val dbConnection = DriverManager.getConnection(url, username, password)
-      // filter_events(dbConnection, spark)
-      filter_mentions(dbConnection, spark)
-
+      filter_events(dbConnection, spark)
+      // filter_mentions(dbConnection, spark)
 
       dbConnection.close
     } catch {

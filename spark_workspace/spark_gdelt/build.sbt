@@ -29,6 +29,7 @@ libraryDependencies += "org.apache.spark" %% "spark-core" % "2.4.0" % "provided"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.4.0" % "provided"
 libraryDependencies += "org.apache.hadoop" % "hadoop-aws" % "2.7.3" % "provided"
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.+"
+libraryDependencies += "com.typesafe" % "config" % "1.3.4"
 // libraryDependencies += "org.postgresql" % "postgresql" % "42.2.7"
 // syntax: groupID %% artifactId % version
 // libraryDependencies += "org.apache.spark" % "spark-streaming_2.10" % "1.4.1"

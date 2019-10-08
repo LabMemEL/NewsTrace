@@ -1,4 +1,5 @@
 import mysql.connector
+import config as cfg
 from mysql.connector import errorcode
 from confluent_kafka import Consumer, KafkaException
 from datetime import datetime
@@ -11,12 +12,13 @@ import logging
 
 class sqlService:
     def __init__(self):
-        self.conn = mysql.connector.connect(user='kafkaCT', password='test',
-                            host='ec2-35-165-132-83.us-west-2.compute.amazonaws.com',
-                            database='gdeltDB')
+        self.conn = mysql.connector.connect(user=cfg.mysql['user'],
+                                            password=cfg.mysql['passwd'],
+                                            host=cfg.mysql['host'],
+                                            database=cfg.mysql['db'])
         self.cur = self.conn.cursor(dictionary=True)
 
-
+    # test query with default URL
     def query_url(self, url = 'http://www.circleid.com/posts/20150812_have_new_domains_had_our_twerking_moment/'):
         query = ("SELECT EID, URL, K_words FROM RS_201508_3 "
             "WHERE Day BETWEEN '11' AND '14' "
@@ -29,7 +31,7 @@ class sqlService:
 class kafkaService:
     def __init__(self):
         self.time = datetime.now()
-        self.conf = {'bootstrap.servers': "ec2-100-20-68-249.us-west-2.compute.amazonaws.com:9092,ec2-100-20-172-143.us-west-2.compute.amazonaws.com:9092,ec2-54-148-29-178.us-west-2.compute.amazonaws.com:9092",
+        self.conf = {'bootstrap.servers': cfg.kafkaservers,
                     'group.id': self.time.strftime("%m/%d/%Y, %H:%M:%S"), 'auto.offset.reset': 'earliest'}
         self.t_topic = ["tweets"]
         self.r_tpoic = ["results_1"]
