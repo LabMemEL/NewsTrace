@@ -22,11 +22,11 @@ Firstly, every URL link appeared in tweets are extracted for querying. The GDELT
 ![Image of Tech stack](https://i.ibb.co/ZTXSB2G/temp.jpg)
 
 - Spark: Apache Spark is used for 2 tasks:
-  - `filter_events`: Extract URL and Event ID from raw data and re-arrange time-windowed tables
-  - `filter_mentions` : Generate details of events into tables with similiar windowing. Prepare data for faster joining and indexing.
+  - `aggregate_mentions` : Load the mentions table with M-1 mapping to event IDs, rows with details of the same event is aggregated by eventID.
+  - `join_events`: Extract URL and Event ID from raw data and left-join with details processed before in 1-1 mappings
 - Kafka: Kafka is also used for two tasks:
   - Ingest simulated stream of tweets
-  - Hold enriched tweets (original post + info on source) returned by consumer/producer, to be consumed by Flask webapp
+  - Hold enriched tweets (original post + info on source) returned by consumer/producer. Here it is consumed by Flask webapp, but ideally this intermediate topic should serve for cross-platform analytics. For individual end-user to query a tweet, the result is saved back to a DB. For analytics on original/enriched topic, KStream/KSQL can serve the processing.
 
 - MySQL: Store two collections of table during spark processing, and another collection table for querying
 
